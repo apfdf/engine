@@ -1,0 +1,5 @@
+
+Struktur av renderare:
+- Mesh i 3d space och möjlighet att rendera rektanglar av textures
+- Gaussian blur för paus?
+

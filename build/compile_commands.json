@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/mans/Documents/episk programmering/engine/build",
+  "command": "/usr/bin/c++   -g -o CMakeFiles/more-rendering.dir/src/main.cpp.o -c \"/home/mans/Documents/episk programmering/engine/src/main.cpp\"",
+  "file": "/home/mans/Documents/episk programmering/engine/src/main.cpp"
+}
+]

@@ -2,4 +2,7 @@
 Struktur av renderare:
 - Mesh i 3d space och möjlighet att rendera rektanglar av textures
 - Gaussian blur för paus?
+- Ha en shader för att rendera textures på rektanglar
+- Rendera 3D space på en texture (tillåter processande som blurring)
 
+- Levels består av walls och platforms (vertikala och horisontella)

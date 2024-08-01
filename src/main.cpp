@@ -337,7 +337,7 @@ bool lines_intersect(glm::vec2 p1, glm::vec2 q1, glm::vec2 p2, glm::vec2 q2) {
 
         float t = (b2 - b1) / (a1 - a2);
 
-        return t >= p1.x && t <= q1.x && t >= p2.x && t <= q2.x;
+        return t > p1.x && t < q1.x && t > p2.x && t < q2.x;
 
     } else {
 
@@ -347,10 +347,10 @@ bool lines_intersect(glm::vec2 p1, glm::vec2 q1, glm::vec2 p2, glm::vec2 q2) {
         }
 
         if (p1.x == q1.x) {
-            return min(p1.y, q1.y) <= max(p2.y, q2.y);
+            return min(p1.y, q1.y) < max(p2.y, q2.y);
         }
 
-        if (q1.x < p2.x || p1.x > q2.x) {
+        if (q1.x <= p2.x || p1.x >= q2.x) {
             return false;
         }
 
@@ -359,7 +359,7 @@ bool lines_intersect(glm::vec2 p1, glm::vec2 q1, glm::vec2 p2, glm::vec2 q2) {
 
         float y = a1 * p2.x + b1;
 
-        return y >= min(p2.y, q2.y) && y <= max(p2.y, q2.y);
+        return y > min(p2.y, q2.y) && y < max(p2.y, q2.y);
 
     }
 
@@ -384,28 +384,53 @@ void wall_to_mesh(vector<float>& vertices, Wall wall) {
 
 void platform_to_mesh(vector<float>& vertices, Platform platform) {
 
-    // i is starting vertex
-    for (int i = 0; i < vertices.size(); i++) {
+    // use ear trimming method
 
-        bool possible = true;
+    vector<pair<float, float>> vertices_c;
+    for (int i = 0; i < platform.polygon_vertices.size(); i++) {
+        vertices_c.push_back({platform.polygon_vertices[i].x, platform.polygon_vertices[i].y});
+    }
 
-        vector<pair<int, int>> added_edges = {};
+    while (vertices_c.size() >= 4) {
 
+        for (int i = 0; i < vertices_c.size(); i++) {
+            
+            cout << "*" << endl;
 
+            bool is_ear = true;
+
+            pair<float, float> A = vertices_c[(i-1)%vertices_c.size()];
+            pair<float, float> B = vertices_c[i];
+            pair<float, float> C = vertices_c[(i+1)%vertices_c.size()];
+
+            for (int j = 0; j < vertices_c.size(); j++) {
+                if (j != (i-1)%vertices_c.size() && j != i && j != (i+1)%vertices_c.size()) {
+                    glm::vec2 p2 = {vertices_c[j].first, vertices_c[j].second};
+                    glm::vec2 q2 = {vertices_c[(j+1)%vertices_c.size()].first, vertices_c[(j+1)%vertices_c.size()].second};
+                    if (lines_intersect({A.first, A.second}, {C.first, C.second}, p2, q2)) {
+                        is_ear = false;
+                    }
+                }
+            }
+
+            if (is_ear) {
+                vertices_c.erase(vertices_c.begin()+i);
+                vertices.insert(vertices.end(), {
+                    A.first, platform.y, A.second,
+                    B.first, platform.y, B.second,
+                    C.first, platform.y, C.second
+                });
+            }
+
+        }
 
     }
 
-    // vector<glm::vec2> vertices_copy = platform.polygon_vertices;
-    // vector<bool> has_triangle(vertices.size());
-
-    // vector<pair<glm::vec2, glm::vec2>> point_pairs = {};
-    // for (int i = 0; i < vertices.size(); i++) {
-    //     point_pairs.push_back({vertices[i], vertices[(i+1) % vertices.size()]});
-    // }
-
-    // for (int i = 0; i < vertices.size(); i++) {
-        
-    // }
+    vertices.insert(vertices.end(), {
+        vertices_c[0].first, platform.y, vertices_c[0].second,
+        vertices_c[1].first, platform.y, vertices_c[1].second,
+        vertices_c[2].first, platform.y, vertices_c[2].second,
+    });
 
 }
 
@@ -466,11 +491,15 @@ int main() {
     platforms.push_back(Platform(-1.0f, {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}}));
 
     vector<Wall> walls;
-    walls.push_back(Wall({-1.0, 1.0}, {1.0, 1.0}, -1.0, 1.0));
+    walls.push_back(Wall({-1.0, 1.0}, {2.0, 1.0}, -1.0, 1.0));
     walls.push_back(Wall({-1.0, 1.0}, {-1.0, -1.0}, -1.0, 1.0));
 
     for (Wall wall : walls) {
         wall_to_mesh(vertices, wall);
+    }
+
+    for (Platform platform : platforms) {
+        platform_to_mesh(vertices, platform);
     }
 
 
@@ -511,9 +540,7 @@ int main() {
 
         plr.v.x = 0.0;
         plr.v.z = 0.0;
-        if (!plr.on_platform) {
-            plr.v.y -= g * dt;
-        }
+        plr.v.y -= g * dt;
         plr.v.y = max(plr.v.y, -max_v);
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE)) {
@@ -547,6 +574,8 @@ int main() {
         // }
 
         plr.p += plr.v * dt;
+
+        plr.on_platform = false;
 
         for (Platform platform : platforms) {
 

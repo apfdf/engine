@@ -205,6 +205,7 @@ struct Player {
     float fov;
     float height;
     float r;
+    bool on_platform;
 
     Player(glm::vec3 pos) {
         p = pos;
@@ -214,6 +215,7 @@ struct Player {
         pitch = 0.0;
         height = 1.0;
         r = 0.2;
+        on_platform = false;
     }
 
 };
@@ -306,8 +308,6 @@ bool point_in_polygon(glm::vec2 p, vector<glm::vec2>& polygon_vertices) {
 
 bool lines_intersect(glm::vec2 p1, glm::vec2 q1, glm::vec2 p2, glm::vec2 q2) {
 
-    bool res = false;
-
     if (p1.x > q1.x) {
         swap(p1, q1);
     }
@@ -331,6 +331,10 @@ bool lines_intersect(glm::vec2 p1, glm::vec2 q1, glm::vec2 p2, glm::vec2 q2) {
             }
         }
 
+        // a1 * x + b1 = a2 * x + b2
+        // (a1 - a2) * x = (b2 - b1)
+        // x = (b2 - b1) / (a1 - a2)
+
         float t = (b2 - b1) / (a1 - a2);
 
         return t >= p1.x && t <= q1.x && t >= p2.x && t <= q2.x;
@@ -343,7 +347,11 @@ bool lines_intersect(glm::vec2 p1, glm::vec2 q1, glm::vec2 p2, glm::vec2 q2) {
         }
 
         if (p1.x == q1.x) {
-            return p1.x == p2.x;
+            return min(p1.y, q1.y) <= max(p2.y, q2.y);
+        }
+
+        if (q1.x < p2.x || p1.x > q2.x) {
+            return false;
         }
 
         float a1 = (q1.y - p1.y) / (q1.x - p1.x);
@@ -374,6 +382,32 @@ void wall_to_mesh(vector<float>& vertices, Wall wall) {
 
 }
 
+void platform_to_mesh(vector<float>& vertices, Platform platform) {
+
+    // i is starting vertex
+    for (int i = 0; i < vertices.size(); i++) {
+
+        bool possible = true;
+
+        vector<pair<int, int>> added_edges = {};
+
+
+
+    }
+
+    // vector<glm::vec2> vertices_copy = platform.polygon_vertices;
+    // vector<bool> has_triangle(vertices.size());
+
+    // vector<pair<glm::vec2, glm::vec2>> point_pairs = {};
+    // for (int i = 0; i < vertices.size(); i++) {
+    //     point_pairs.push_back({vertices[i], vertices[(i+1) % vertices.size()]});
+    // }
+
+    // for (int i = 0; i < vertices.size(); i++) {
+        
+    // }
+
+}
 
 int main() {
 
@@ -405,7 +439,7 @@ int main() {
         "tex"
     });
 
-    Tex2D tex("../textures/jesser.png");
+    Tex2D tex("../textures/bricks.png");
 
     vector<float> vertices = {
         // -1.0f, -1.0f, 1.0f,
@@ -424,6 +458,8 @@ int main() {
 
 
     // player and level stuff
+    float g = 2.0;
+    float max_v = 5.0f;
     Player plr(glm::vec3(0.0, 0.0, 0.0));
 
     vector<Platform> platforms;
@@ -431,7 +467,7 @@ int main() {
 
     vector<Wall> walls;
     walls.push_back(Wall({-1.0, 1.0}, {1.0, 1.0}, -1.0, 1.0));
-    walls.push_back(Wall({2.0, -0.5}, {1.0, -0.3}, -0.5, 0.5));
+    walls.push_back(Wall({-1.0, 1.0}, {-1.0, -1.0}, -1.0, 1.0));
 
     for (Wall wall : walls) {
         wall_to_mesh(vertices, wall);
@@ -473,47 +509,60 @@ int main() {
         plr.pitch = min(plr.pitch, (float)PI/2);
         plr.pitch = max(plr.pitch, -(float)PI/2);
 
-        plr.v = glm::vec3(0.0);
+        plr.v.x = 0.0;
+        plr.v.z = 0.0;
+        if (!plr.on_platform) {
+            plr.v.y -= g * dt;
+        }
+        plr.v.y = max(plr.v.y, -max_v);
 
         if (glfwGetKey(window, GLFW_KEY_ESCAPE)) {
             break;
         }
         if (glfwGetKey(window, GLFW_KEY_W)) {
-            plr.v.z -= dt * cos(plr.yaw) * plr.speed;
-            plr.v.x -= dt * sin(plr.yaw) * plr.speed;
+            plr.v.z -= cos(plr.yaw) * plr.speed;
+            plr.v.x -= sin(plr.yaw) * plr.speed;
         }
         if (glfwGetKey(window, GLFW_KEY_S)) {
-            plr.v.z += dt * cos(plr.yaw) * plr.speed;
-            plr.v.x += dt * sin(plr.yaw) * plr.speed;
+            plr.v.z += cos(plr.yaw) * plr.speed;
+            plr.v.x += sin(plr.yaw) * plr.speed;
         }
         if (glfwGetKey(window, GLFW_KEY_D)) {
-            plr.v.z += dt * -sin(plr.yaw) * plr.speed;
-            plr.v.x += dt * cos(plr.yaw) * plr.speed;
+            plr.v.z += -sin(plr.yaw) * plr.speed;
+            plr.v.x += cos(plr.yaw) * plr.speed;
         }
         if (glfwGetKey(window, GLFW_KEY_A)) {
-            plr.v.z -= dt * -sin(plr.yaw) * plr.speed;
-            plr.v.x -= dt * cos(plr.yaw) * plr.speed;
+            plr.v.z -= -sin(plr.yaw) * plr.speed;
+            plr.v.x -= cos(plr.yaw) * plr.speed;
         }
         if (glfwGetKey(window, GLFW_KEY_SPACE)) {
-            plr.v.y += dt * plr.speed;
+            if (plr.on_platform) {
+               plr.v.y = 1.0;
+               plr.on_platform = false;
+            }
+            // plr.v.y += dt * plr.speed;
         }
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
-            plr.v.y -= dt * plr.speed;
-        }
+        // if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
+        //     plr.v.y -= dt * plr.speed;
+        // }
 
-        plr.p += plr.v;
+        plr.p += plr.v * dt;
 
         for (Platform platform : platforms) {
 
-            float y1 = plr.p.y - plr.v.y;
+            float y1 = plr.p.y - plr.v.y * dt;
             float y2 = plr.p.y;
 
             if (platform.y >= min(y1, y2) - plr.height / 2 && platform.y <= max(y1, y2) + plr.height / 2) {
 
                 if (point_in_polygon(glm::vec2(plr.p.x, plr.p.z), platform.polygon_vertices)) {
                     if (plr.v.y > 0 && y1 + plr.height / 2 <= platform.y && y2 + plr.height / 2 >= platform.y) {
+                        plr.v.y = 0.0;
+                        plr.on_platform = true;
                         plr.p.y = platform.y - plr.height / 2;
                     } else if (plr.v.y < 0 && y1 - plr.height / 2 >= platform.y && y2 - plr.height / 2 <= platform.y) {
+                        plr.v.y = 0.0;                        
+                        plr.on_platform = true;
                         plr.p.y = platform.y + plr.height / 2;
                     }
                 }
@@ -530,13 +579,20 @@ int main() {
                     continue;
                 }
 
+                // float orientation;
+                // if (glm::length(glm::vec2(plr.p.x, plr.p.z) - (wall.p1 + wall.normal)) > glm::length(glm::vec2(plr.p.x, plr.p.z) - (wall.p1 - wall.normal))) {
+                //     orientation = 1.0;
+                // } else {
+                //     orientation = -1.0;
+                // }
+
                 float orientation = glm::dot(glm::vec2(plr.v.x, plr.v.z), wall.normal);
                 orientation /= abs(orientation);
 
                 glm::vec2 p1 = wall.p1 - wall.normal * plr.r * orientation;
                 glm::vec2 q1 = wall.p2 - wall.normal * plr.r * orientation;
 
-                glm::vec2 p2 = glm::vec2(plr.p.x - plr.v.x, plr.p.z - plr.v.z);
+                glm::vec2 p2 = glm::vec2(plr.p.x - plr.v.x * dt, plr.p.z - plr.v.z * dt);
                 glm::vec2 q2 = glm::vec2(plr.p.x, plr.p.z);
 
                 if (lines_intersect(p1, q1, p2, q2)) {
@@ -547,27 +603,27 @@ int main() {
 
                     float d = abs(a * plr.p.x + b * plr.p.z + c) / sqrt(a*a + b*b);
 
-                    plr.p.x -= (d+0.001) * wall.normal.x * orientation;
-                    plr.p.z -= (d+0.001) * wall.normal.y * orientation;
+                    plr.p.x -= (d+0.00001) * wall.normal.x * orientation;
+                    plr.p.z -= (d+0.00001) * wall.normal.y * orientation;
 
                 } else {
 
-                    glm::vec2 v1 = wall.p1 - glm::vec2(plr.p.x, plr.p.z);
-                    glm::vec2 v2 = wall.p2 - glm::vec2(plr.p.x, plr.p.z);
+                    // glm::vec2 v1 = wall.p1 - glm::vec2(plr.p.x, plr.p.z);
+                    // glm::vec2 v2 = wall.p2 - glm::vec2(plr.p.x, plr.p.z);
 
-                    float d1 = glm::length(v1);
-                    float d2 = glm::length(v2);
+                    // float d1 = glm::length(v1);
+                    // float d2 = glm::length(v2);
 
-                    if (d1 < plr.r) {
-                        glm::vec2 displace = glm::normalize(v1) * (plr.r - d1 + 0.001f);
-                        plr.p.x -= displace.x;
-                        plr.p.z -= displace.y;
-                    }
-                    if (d2 < plr.r) {
-                        glm::vec2 displace = glm::normalize(v2) * (plr.r - d2 + 0.001f);
-                        plr.p.x -= displace.x;
-                        plr.p.z -= displace.y;
-                    }
+                    // if (d1 < plr.r) {
+                    //     glm::vec2 displace = glm::normalize(v1) * (plr.r - d1 + 0.001f);
+                    //     plr.p.x -= displace.x;
+                    //     plr.p.z -= displace.y;
+                    // }
+                    // if (d2 < plr.r) {
+                    //     glm::vec2 displace = glm::normalize(v2) * (plr.r - d2 + 0.001f);
+                    //     plr.p.x -= displace.x;
+                    //     plr.p.z -= displace.y;
+                    // }
 
                 }
 

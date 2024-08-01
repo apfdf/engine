@@ -210,7 +210,7 @@ struct Player {
     Player(glm::vec3 pos) {
         p = pos;
         speed = 1.0;
-        fov = PI/2;
+        fov = PI * 0.75;
         yaw = 0.0;
         pitch = 0.0;
         height = 1.0;
@@ -395,8 +395,6 @@ void platform_to_mesh(vector<float>& vertices, Platform platform) {
 
         for (int i = 0; i < vertices_c.size(); i++) {
             
-            cout << "*" << endl;
-
             bool is_ear = true;
 
             pair<float, float> A = vertices_c[(i-1)%vertices_c.size()];
@@ -420,6 +418,7 @@ void platform_to_mesh(vector<float>& vertices, Platform platform) {
                     B.first, platform.y, B.second,
                     C.first, platform.y, C.second
                 });
+                break;
             }
 
         }
@@ -485,10 +484,10 @@ int main() {
     // player and level stuff
     float g = 2.0;
     float max_v = 5.0f;
-    Player plr(glm::vec3(0.0, 0.0, 0.0));
+    Player plr(glm::vec3(0.0, 1.0, 0.0));
 
     vector<Platform> platforms;
-    platforms.push_back(Platform(-1.0f, {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}}));
+    platforms.push_back(Platform(-1.0f, {{-1.0, -1.0}, {1.0, -1.0}, {1.0, 1.0}, {-1.0, 1.0}, {0.0, 0.0}}));
 
     vector<Wall> walls;
     walls.push_back(Wall({-1.0, 1.0}, {2.0, 1.0}, -1.0, 1.0));
@@ -515,6 +514,7 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
 
+    // glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 
     double time_when_fps = glfwGetTime();
     int updates_since_fps = 0;
